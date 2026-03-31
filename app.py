@@ -45,13 +45,6 @@ def listar_ordens():
     # Converte cada Row do SQLite em um dicionário Python para serializar um JSON
     return jsonify([dict(o) for o in ordens])
 
-# --- PONTO DE PARTIDA ---
-
-if __name__=='__main__':
-    init_bd()
-
-    app.run(debug=True, host='0.0.0.0', port=5000)
-    
 # ROTA POR ID - BUSCAR UMA ORDEM ESPECÍFICA PELO ID (GET)
 
 @app.route('/ordens/<int:ordem_id>', methods=['GET'])
@@ -72,9 +65,63 @@ def buscar_ordem(ordem_id):
     cursor = conn.cursor()
     
     #o '?' é substituido pelo valor de ordem_id de forma segura
-    cursor.execute('SELECT * FROM ordens WHERE id = ?', (ordem_id))
+    cursor.execute('SELECT * FROM ordens WHERE id = ?', (ordem_id,))
     ordem = cursor.fetchone()  #ele retorna um unico registro ou None
     conn.close()
     
     
+    if ordem is None:
+        return jsonify({'erro': f'Ordem {ordem_id} nao encontrada'}), 404
+    return jsonify(dict(ordem)), 200
+
+# --- ROTA : CRIAR NOVA ORDEM DE PRODUÇÃO (POST) ---
+@app.route('/ordens', methods=['POST'])
+def criar_ordem():
+    """
+    Cria uma nova ordem de produção a partir dos dados JSON enviados.
     
+    Body esperado(JSON):
+    
+        produto     (str) : Nome do produto - Obrigatório
+        quantidade  (int) : Qntd de peças   - Obrigatório, > 0
+        status      (str) : Opcional        - Padrão : 'Pendente'
+
+    Retorno:
+        201 : JSON da ordem criar, em caso de sucesso.
+        400 : mensagem de erro, se dados invalidos
+    """
+    
+    dados = request.get_json()
+    
+    if not dados:
+        return jsonify({'erro': 'Body da requisicao ausente ou invalido'}), 400
+     
+    #verificação de campo obrigatório (produto)
+    produto = dados.get('produto','').strip()
+    if not produto:
+        return jsonify({'erro': 'Campo "Produto" e obrigatorio e nao pode ser vazio.'}), 400
+    
+    #verificação de campo obrigatório (quantidade)
+    quantidade = dados.get('quantidade')
+    if quantidade is None:
+        return jsonify({'erro': 'Campo "Quantidade" e obrigatorio.'}), 400
+    
+    #verifica se a quantidade é um número inteiro e positivo
+    try:
+        quantidade = int(quantidade)
+        if quantidade <= 0:
+            raise ValueError()
+    except (ValueError, TypeError):
+        return jsonify({'erro': 'Campo "Quantidade" deve ser um numero inteiro positivo'}), 400
+    #Status ('pendendo, em andamento, concluída') - opcional
+    status_validos = ['Pendente','Em andamento','Concluida']
+    status = dados.get('status', 'Pendente')
+    if status not in status_validos:
+        return jsonify({'erro': f'Status invalido. Use {status_validos}'}), 400
+     
+# --- PONTO DE PARTIDA ---
+
+if __name__=='__main__':
+    init_bd()
+
+    app.run(debug=True, host='0.0.0.0', port=5000)
