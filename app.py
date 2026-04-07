@@ -1,8 +1,12 @@
-#--- BACK-END FLASK: ROTAS DA API REST ---
+#-------------------------------------------------------------------------
+#   app.py - SISTEMA DE ORDENS DE PRODUÇÃO - C.R.U.D COMPLETO
+# SENAI - JARAGUÁ DO SUL, SC - TÉCNICOS EM CIBERSISTEMAS - 2026/1
+#-------------------------------------------------------------------------
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from database import init_bd, get_connection
+import datetime
 
 # Cria uma instância da aplicação Flash
 app = Flask(__name__, static_folder = 'static', static_url_path='')
@@ -21,12 +25,20 @@ def index():
 def status():
     # Rota de verificação da API(saúde)
     # Retora um JSON informando que o servidor está vivo
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) AS total FROM ordens')
+    resultado = cursor.fetchone()
+    conn.close()
     return jsonify({
         "status": "online",
         "sistema": "Sistema de ordem de Producao",
-        "versao": "1.0.0",
+        "versao": "2.0.0",
+        "total_ordens": resultado["total"],
+        "timestamp":datetime.datetime.now().strftime("%Y-%m-%d | %H:%M:%S"),
         "mensagem": "Ola, Fabrica, API FUNCIONANDO!"
     })
+
 #ROTA Nº3 - LISTAR TODAS AS ORDENS(GET)
 @app.route('/ordens', methods=['GET'])
 def listar_ordens():
